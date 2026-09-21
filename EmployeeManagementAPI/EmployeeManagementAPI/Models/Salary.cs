@@ -16,6 +16,6 @@
 
         public string SalaryMonth { get; set; } = string.Empty;
 
-        public Employee? Employee { get; set; }
+        
     }
 }

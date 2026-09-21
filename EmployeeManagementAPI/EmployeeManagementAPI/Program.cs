@@ -1,67 +1,37 @@
+using System.Text;
+
 using EmployeeManagementAPI.Data;
-using EmployeeManagementAPI.Interfaces;
 using EmployeeManagementAPI.Repositories;
 using EmployeeManagementAPI.Repositories.Interfaces;
 using EmployeeManagementAPI.Services;
 using EmployeeManagementAPI.Services.Interfaces;
+
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
-using System.Text;
 using Microsoft.OpenApi.Models;
+
+using QuestPDF.Infrastructure;
+
 
 var builder = WebApplication.CreateBuilder(args);
 
-// ----------------------------------------------------
-// 1. Add Controllers
-// ----------------------------------------------------
-builder.Services.AddControllers();
 
-
-// ----------------------------------------------------
-// 2. Database Connection
-// ----------------------------------------------------
-var connectionString =
-    builder.Configuration.GetConnectionString("DefaultConnection");
+// ============================================================
+// DATABASE
+// ============================================================
 
 builder.Services.AddDbContext<ApplicationDBContext>(options =>
-    options.UseSqlServer(connectionString));
+{
+    options.UseSqlServer(
+        builder.Configuration.GetConnectionString("DefaultConnection")
+    );
+});
 
 
-// ----------------------------------------------------
-// 3. JWT Authentication
-// ----------------------------------------------------
-var jwtKey = builder.Configuration["Jwt:Key"];
-
-builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
-    .AddJwtBearer(options =>
-    {
-        options.TokenValidationParameters = new TokenValidationParameters
-        {
-            ValidateIssuer = true,
-            ValidateAudience = true,
-            ValidateLifetime = true,
-            ValidateIssuerSigningKey = true,
-
-            ValidIssuer = builder.Configuration["Jwt:Issuer"],
-            ValidAudience = builder.Configuration["Jwt:Audience"],
-
-            IssuerSigningKey =
-                new SymmetricSecurityKey(
-                    Encoding.UTF8.GetBytes(jwtKey!))
-        };
-    });
-
-
-// ----------------------------------------------------
-// 4. Authorization
-// ----------------------------------------------------
-builder.Services.AddAuthorization();
-
-
-// ----------------------------------------------------
-// 5. Register Repositories
-// ----------------------------------------------------
+// ============================================================
+// REPOSITORIES
+// ============================================================
 
 builder.Services.AddScoped<IUserRepository, UserRepository>();
 
@@ -73,14 +43,14 @@ builder.Services.AddScoped<IAttendanceRepository, AttendanceRepository>();
 
 builder.Services.AddScoped<ISalaryRepository, SalaryRepository>();
 
+builder.Services.AddScoped<IPerformanceRepository, PerformanceRepository>();
+
 builder.Services.AddScoped<IReportRepository, ReportRepository>();
 
 
-// ----------------------------------------------------
-// 6. Register Services
-// ----------------------------------------------------
-
-builder.Services.AddScoped<IUserService, UserService>();
+// ============================================================
+// SERVICES
+// ============================================================
 
 builder.Services.AddScoped<IAuthService, AuthService>();
 
@@ -92,100 +62,247 @@ builder.Services.AddScoped<IAttendanceService, AttendanceService>();
 
 builder.Services.AddScoped<ISalaryService, SalaryService>();
 
+builder.Services.AddScoped<IPerformanceService, PerformanceService>();
+
 builder.Services.AddScoped<IReportService, ReportService>();
 
 
-// ----------------------------------------------------
-// 7. Swagger
-// ----------------------------------------------------
-builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen(options =>
-{
-    options.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
-    {
-        Name = "Authorization",
-        Type = SecuritySchemeType.Http,
-        Scheme = "Bearer",
-        BearerFormat = "JWT",
-        In = ParameterLocation.Header,
-        Description = "Enter: Bearer {your JWT token}"
-    });
+// ============================================================
+// CONTROLLERS
+// ============================================================
 
-    options.AddSecurityRequirement(new OpenApiSecurityRequirement
-    {
+builder.Services.AddControllers();
+
+
+// ============================================================
+// JWT CONFIGURATION
+// ============================================================
+
+var jwtKey = builder.Configuration["Jwt:Key"];
+
+var jwtIssuer = builder.Configuration["Jwt:Issuer"];
+
+var jwtAudience = builder.Configuration["Jwt:Audience"];
+
+
+if (string.IsNullOrWhiteSpace(jwtKey))
+{
+    throw new InvalidOperationException(
+        "Jwt:Key is missing in appsettings.json."
+    );
+}
+
+
+if (string.IsNullOrWhiteSpace(jwtIssuer))
+{
+    throw new InvalidOperationException(
+        "Jwt:Issuer is missing in appsettings.json."
+    );
+}
+
+
+if (string.IsNullOrWhiteSpace(jwtAudience))
+{
+    throw new InvalidOperationException(
+        "Jwt:Audience is missing in appsettings.json."
+    );
+}
+
+
+// ============================================================
+// JWT AUTHENTICATION
+// ============================================================
+
+builder.Services.AddAuthentication(options =>
+{
+    options.DefaultAuthenticateScheme =
+        JwtBearerDefaults.AuthenticationScheme;
+
+    options.DefaultChallengeScheme =
+        JwtBearerDefaults.AuthenticationScheme;
+})
+.AddJwtBearer(options =>
+{
+    options.TokenValidationParameters =
+        new TokenValidationParameters
         {
-            new OpenApiSecurityScheme
-            {
-                Reference = new OpenApiReference
-                {
-                    Type = ReferenceType.SecurityScheme,
-                    Id = "Bearer"
-                }
-            },
-            Array.Empty<string>()
-        }
-    });
+            ValidateIssuerSigningKey = true,
+
+            IssuerSigningKey =
+                new SymmetricSecurityKey(
+                    Encoding.UTF8.GetBytes(jwtKey)
+                ),
+
+            ValidateIssuer = true,
+
+            ValidIssuer = jwtIssuer,
+
+            ValidateAudience = true,
+
+            ValidAudience = jwtAudience,
+
+            ValidateLifetime = true,
+
+            ClockSkew = TimeSpan.Zero
+        };
 });
 
-// ----------------------------------------------------
-// 8. CORS - Angular
-// ----------------------------------------------------
+
+// ============================================================
+// AUTHORIZATION
+// ============================================================
+
+builder.Services.AddAuthorization();
+
+
+// ============================================================
+// CORS
+// ============================================================
+
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AngularPolicy", policy =>
     {
         policy
-            .AllowAnyOrigin()
+            .WithOrigins(
+                "http://localhost:4200",
+                "https://localhost:4200"
+            )
             .AllowAnyHeader()
-            .AllowAnyMethod();
+            .AllowAnyMethod()
+            .AllowCredentials();
     });
 });
 
 
+// ============================================================
+// SWAGGER
+// ============================================================
+
+builder.Services.AddEndpointsApiExplorer();
+
+builder.Services.AddSwaggerGen(options =>
+{
+    options.SwaggerDoc(
+        "v1",
+        new OpenApiInfo
+        {
+            Title = "Employee Management API",
+
+            Version = "v1",
+
+            Description =
+                "Employee Management System Web API"
+        }
+    );
+
+
+    // ========================================================
+    // SWAGGER JWT AUTHORIZATION
+    // ========================================================
+
+    options.AddSecurityDefinition(
+        "Bearer",
+        new OpenApiSecurityScheme
+        {
+            Name = "Authorization",
+
+            Type = SecuritySchemeType.Http,
+
+            Scheme = "bearer",
+
+            BearerFormat = "JWT",
+
+            In = ParameterLocation.Header,
+
+            Description =
+                "Enter your JWT token.\n\n" +
+                "Example:\n" +
+                "Bearer eyJhbGciOiJIUzI1NiIs..."
+        }
+    );
+
+
+    options.AddSecurityRequirement(
+        new OpenApiSecurityRequirement
+        {
+            {
+                new OpenApiSecurityScheme
+                {
+                    Reference =
+                        new OpenApiReference
+                        {
+                            Type =
+                                ReferenceType.SecurityScheme,
+
+                            Id = "Bearer"
+                        }
+                },
+
+                Array.Empty<string>()
+            }
+        }
+    );
+});
+
+
+// ============================================================
+// QUESTPDF
+// ============================================================
+
+QuestPDF.Settings.License =
+    LicenseType.Community;
+
+
+// ============================================================
+// BUILD APPLICATION
+// ============================================================
+
 var app = builder.Build();
 
 
-// ----------------------------------------------------
-// 9. Swagger
-// ----------------------------------------------------
+// ============================================================
+// SWAGGER
+// ============================================================
+
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
+
     app.UseSwaggerUI();
 }
 
 
-// ----------------------------------------------------
-// 10. HTTPS
-// ----------------------------------------------------
-app.UseHttpsRedirection();
+// ============================================================
+// CORS
+// ============================================================
 
-
-// ----------------------------------------------------
-// 11. CORS
-// ----------------------------------------------------
 app.UseCors("AngularPolicy");
 
 
-// ----------------------------------------------------
-// 12. Authentication
-// ----------------------------------------------------
+// ============================================================
+// AUTHENTICATION
+// ============================================================
+
 app.UseAuthentication();
 
 
-// ----------------------------------------------------
-// 13. Authorization
-// ----------------------------------------------------
+// ============================================================
+// AUTHORIZATION
+// ============================================================
+
 app.UseAuthorization();
 
 
-// ----------------------------------------------------
-// 14. Controllers
-// ----------------------------------------------------
+// ============================================================
+// CONTROLLERS
+// ============================================================
+
 app.MapControllers();
 
 
-// ----------------------------------------------------
-// 15. Run
-// ----------------------------------------------------
+// ============================================================
+// RUN APPLICATION
+// ============================================================
+
 app.Run();

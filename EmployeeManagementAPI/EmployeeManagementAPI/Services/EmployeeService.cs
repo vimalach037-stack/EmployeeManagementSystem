@@ -1,6 +1,7 @@
 ﻿using EmployeeManagementAPI.DTOs;
 using EmployeeManagementAPI.Models;
 using EmployeeManagementAPI.Repositories.Interfaces;
+
 using EmployeeManagementAPI.Services.Interfaces;
 
 namespace EmployeeManagementAPI.Services
@@ -14,9 +15,10 @@ namespace EmployeeManagementAPI.Services
             _repository = repository;
         }
 
-        // ==========================================
+        // =========================================================
         // GET ALL EMPLOYEES
-        // ==========================================
+        // =========================================================
+
         public async Task<List<EmployeeDto>> GetAllEmployeesAsync()
         {
             var employees = await _repository.GetAllAsync();
@@ -36,15 +38,18 @@ namespace EmployeeManagementAPI.Services
         }
 
 
-        // ==========================================
+        // =========================================================
         // GET EMPLOYEE BY ID
-        // ==========================================
+        // =========================================================
+
         public async Task<EmployeeDto?> GetByIdAsync(int id)
         {
             var employee = await _repository.GetByIdAsync(id);
 
             if (employee == null)
+            {
                 return null;
+            }
 
             return new EmployeeDto
             {
@@ -61,9 +66,10 @@ namespace EmployeeManagementAPI.Services
         }
 
 
-        // ==========================================
-        // ADD EMPLOYEE
-        // ==========================================
+        // =========================================================
+        // CREATE EMPLOYEE
+        // =========================================================
+
         public async Task<EmployeeDto> AddAsync(EmployeeDto dto)
         {
             var employee = new Employee
@@ -75,7 +81,8 @@ namespace EmployeeManagementAPI.Services
                 Designation = dto.Designation,
                 JoiningDate = dto.JoiningDate,
                 Salary = dto.Salary,
-                DepartmentId = dto.DepartmentId
+                DepartmentId = dto.DepartmentId,
+                Status = "Active"
             };
 
             var result = await _repository.AddAsync(employee);
@@ -86,15 +93,20 @@ namespace EmployeeManagementAPI.Services
         }
 
 
-        // ==========================================
+        // =========================================================
         // UPDATE EMPLOYEE
-        // ==========================================
-        public async Task<bool> UpdateAsync(int id, EmployeeDto dto)
+        // =========================================================
+
+        public async Task<bool> UpdateAsync(
+            int id,
+            EmployeeDto dto)
         {
             var employee = await _repository.GetByIdAsync(id);
 
             if (employee == null)
+            {
                 return false;
+            }
 
             employee.FirstName = dto.FirstName;
             employee.LastName = dto.LastName;
@@ -111,15 +123,18 @@ namespace EmployeeManagementAPI.Services
         }
 
 
-        // ==========================================
+        // =========================================================
         // DELETE EMPLOYEE
-        // ==========================================
+        // =========================================================
+
         public async Task<bool> DeleteAsync(int id)
         {
             var employee = await _repository.GetByIdAsync(id);
 
             if (employee == null)
+            {
                 return false;
+            }
 
             await _repository.DeleteAsync(employee);
 

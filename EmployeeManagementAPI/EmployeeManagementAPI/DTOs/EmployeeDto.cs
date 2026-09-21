@@ -4,7 +4,7 @@
     {
         public int EmployeeId { get; set; }
 
-        public string EmployeeCode { get; set; } = string.Empty;
+       
 
         public string FirstName { get; set; } = string.Empty;
 
@@ -14,9 +14,8 @@
 
         public string Phone { get; set; } = string.Empty;
 
-        public string Gender { get; set; } = string.Empty;
+       
 
-        public DateTime DateOfBirth { get; set; }
 
         public DateTime JoiningDate { get; set; }
 
@@ -35,7 +34,7 @@
 
     public class CreateEmployeeDto
     {
-        public string EmployeeCode { get; set; } = string.Empty;
+     
 
         public string FirstName { get; set; } = string.Empty;
 
@@ -45,9 +44,9 @@
 
         public string Phone { get; set; } = string.Empty;
 
-        public string Gender { get; set; } = string.Empty;
+       
 
-        public DateTime DateOfBirth { get; set; }
+      
 
         public DateTime JoiningDate { get; set; }
 
